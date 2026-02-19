@@ -3527,15 +3527,27 @@
                 document.getElementById('formatted-time').value = hour + ':' + minute + ' ' + ampm;
             }
             
-            // Store fare estimate in hidden field
-            const fareTotal = document.getElementById('fare-total');
-            let fareAmount = '$16.34'; // Default
-            if (fareTotal && fareTotal.textContent) {
-                fareAmount = '$' + fareTotal.textContent;
-                document.getElementById('fare-estimate-hidden').value = fareAmount;
+            // Calculate fare NOW and write to hidden field BEFORE formData is built
+            var BASE = 15.00, FREE_MI = 10, RATE = 1.50, STOP_FEE = 6.00, TAX = 0.089;
+            var subtotal = BASE;
+            if (pickupPlace && dropoffPlace) {
+                var pts = [pickupPlace];
+                Object.keys(stopPlaces).sort().forEach(function(k) {
+                    if (stopPlaces[k] && stopPlaces[k].lat) pts.push(stopPlaces[k]);
+                });
+                pts.push(dropoffPlace);
+                var totalMiles = 0;
+                for (var i = 0; i < pts.length - 1; i++) {
+                    totalMiles += distMiles(pts[i].lat, pts[i].lng, pts[i+1].lat, pts[i+1].lng);
+                }
+                var stopCount = pts.length - 2;
+                var extraMiles = Math.max(0, totalMiles - FREE_MI);
+                subtotal = BASE + (extraMiles * RATE) + (stopCount * STOP_FEE);
             }
+            var fareTotal = (subtotal + subtotal * TAX).toFixed(2);
+            document.getElementById('fare-estimate-field').value = '$' + fareTotal;
             
-            // Get form data
+            // Get form data (fare is now in the hidden field)
             const formData = new FormData(this);
             
             // Show loading state
