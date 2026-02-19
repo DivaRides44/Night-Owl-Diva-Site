@@ -1739,6 +1739,19 @@
             color: var(--neon-pink) !important;
         }
 
+        .big-fare-total-row {
+            font-size: 1.3rem !important;
+            font-weight: 900 !important;
+            color: var(--neon-cyan) !important;
+            margin-top: 0.25rem;
+        }
+
+        .big-fare-dim {
+            font-weight: 400;
+            opacity: 0.6;
+            font-size: 0.9em;
+        }
+
         .big-fare-note {
             font-size: 0.95rem;
             color: rgba(255,255,255,0.75);
@@ -3273,27 +3286,37 @@
                     
                     <!-- BIG FARE DISPLAY -->
                     <div class="big-fare-box">
-                        <p class="big-fare-label">💰 ESTIMATED FARE</p>
+                        <p class="big-fare-label">💰 YOUR FARE BREAKDOWN</p>
                         <div class="big-fare-breakdown">
                             <div class="big-fare-row">
-                                <span>Base fare (first 10 miles included)</span>
+                                <span>Base fare <span class="big-fare-dim">(includes first 10 miles)</span></span>
                                 <span>$15.00</span>
                             </div>
-                            <div class="big-fare-row">
-                                <span>Each additional mile</span>
-                                <span>$1.50/mi</span>
+                            <div class="big-fare-row" id="extra-miles-row" style="display:none;">
+                                <span>Extra miles <span class="big-fare-dim" id="extra-miles-label"></span></span>
+                                <span id="extra-miles-cost">$0.00</span>
                             </div>
-                            <div class="big-fare-row">
-                                <span>Each stop</span>
-                                <span>$6.00</span>
+                            <div class="big-fare-row" id="stops-row" style="display:none;">
+                                <span>Stops <span class="big-fare-dim" id="stops-label"></span></span>
+                                <span id="stops-cost">$0.00</span>
                             </div>
                             <div class="big-fare-divider"></div>
-                            <div class="big-fare-row big-fare-example">
-                                <span>Example: 20 mile trip</span>
-                                <span>$30.00</span>
+                            <div class="big-fare-row">
+                                <span>Subtotal</span>
+                                <span id="fare-subtotal-display">$15.00</span>
+                            </div>
+                            <div class="big-fare-row">
+                                <span>Tax <span class="big-fare-dim">(8.9%)</span></span>
+                                <span id="fare-tax-display">$1.34</span>
+                            </div>
+                            <div class="big-fare-divider"></div>
+                            <div class="big-fare-row big-fare-total-row">
+                                <span>ESTIMATED TOTAL</span>
+                                <span id="fare-grand-total">$16.34</span>
                             </div>
                         </div>
                         <p class="big-fare-note">📞 Sheila will confirm your exact fare when she calls to confirm your ride.</p>
+                        <p class="big-fare-note" style="margin-top:0.5rem; font-size:0.8rem; opacity:0.5;">* Estimate based on straight-line distance. Final fare confirmed at time of service.</p>
                     </div>
                     
                     <p class="payment-subtitle">Choose your payment method below:</p>
@@ -3525,18 +3548,11 @@
                 method: 'POST',
                 body: formData
             }).then(response => {
-                // Show payment section regardless - FormSubmit sometimes returns non-200 but still works
-                document.getElementById('payment-section').style.display = 'block';
-                document.getElementById('payment-section').scrollIntoView({ behavior: 'smooth' });
-                document.querySelector('.booking-form').style.opacity = '0.6';
-                document.querySelector('.booking-form').style.pointerEvents = 'none';
+                // Show payment section with fare breakdown
+                showPaymentSection();
                 submitBtn.innerHTML = '✅ Request Sent!';
             }).catch(error => {
-                // Even on network error, show payment section - FormSubmit likely got it
-                document.getElementById('payment-section').style.display = 'block';
-                document.getElementById('payment-section').scrollIntoView({ behavior: 'smooth' });
-                document.querySelector('.booking-form').style.opacity = '0.6';
-                document.querySelector('.booking-form').style.pointerEvents = 'none';
+                showPaymentSection();
                 submitBtn.innerHTML = '✅ Request Sent!';
             });
         });
@@ -3631,6 +3647,56 @@
                 return autocomplete;
             }
             return null;
+        }
+
+        function showPaymentSection() {
+            // Calculate fare from stored pickup/dropoff
+            var BASE = 15.00, FREE_MI = 10, RATE = 1.50, STOP_FEE = 6.00, TAX = 0.089;
+            var subtotal = BASE;
+            var extraMilesAmt = 0;
+            var stopsAmt = 0;
+
+            if (pickupPlace && dropoffPlace) {
+                var points = [pickupPlace];
+                Object.keys(stopPlaces).sort().forEach(function(k) {
+                    if (stopPlaces[k] && stopPlaces[k].lat) points.push(stopPlaces[k]);
+                });
+                points.push(dropoffPlace);
+                
+                var totalMiles = 0;
+                for (var i = 0; i < points.length - 1; i++) {
+                    totalMiles += distMiles(points[i].lat, points[i].lng, points[i+1].lat, points[i+1].lng);
+                }
+                
+                var stopCount = points.length - 2;
+                var extraMiles = Math.max(0, totalMiles - FREE_MI);
+                extraMilesAmt = extraMiles * RATE;
+                stopsAmt = stopCount * STOP_FEE;
+                subtotal = BASE + extraMilesAmt + stopsAmt;
+
+                if (extraMiles > 0) {
+                    document.getElementById('extra-miles-row').style.display = 'flex';
+                    document.getElementById('extra-miles-label').textContent = '(' + extraMiles.toFixed(1) + ' mi × $1.50)';
+                    document.getElementById('extra-miles-cost').textContent = '$' + extraMilesAmt.toFixed(2);
+                }
+                if (stopCount > 0) {
+                    document.getElementById('stops-row').style.display = 'flex';
+                    document.getElementById('stops-label').textContent = '(' + stopCount + ' × $6.00)';
+                    document.getElementById('stops-cost').textContent = '$' + stopsAmt.toFixed(2);
+                }
+            }
+
+            var tax = subtotal * TAX;
+            var total = subtotal + tax;
+
+            document.getElementById('fare-subtotal-display').textContent = '$' + subtotal.toFixed(2);
+            document.getElementById('fare-tax-display').textContent = '$' + tax.toFixed(2);
+            document.getElementById('fare-grand-total').textContent = '$' + total.toFixed(2);
+
+            document.getElementById('payment-section').style.display = 'block';
+            document.getElementById('payment-section').scrollIntoView({ behavior: 'smooth' });
+            document.querySelector('.booking-form').style.opacity = '0.6';
+            document.querySelector('.booking-form').style.pointerEvents = 'none';
         }
 
         function scheduleFareCalculation() {
