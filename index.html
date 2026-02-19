@@ -3566,25 +3566,24 @@
 
                 autocomplete.addListener('place_changed', function() {
                     const place = autocomplete.getPlace();
-                    if (place.formatted_address) {
-                        inputElement.value = place.formatted_address;
-                    }
+                    const address = place.formatted_address || place.name || inputElement.value;
+                    if (address) inputElement.value = address;
 
-                    // Store raw lat/lng numbers immediately — don't rely on LatLng methods later
-                    const stored = { formatted_address: place.formatted_address };
-                    if (place.geometry && place.geometry.location) {
-                        const loc = place.geometry.location;
-                        const rawLat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
-                        const rawLng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
-                        stored.geometry = { location: { lat: rawLat, lng: rawLng } };
-                    }
-
-                    var flat = stored.geometry ? { lat: stored.geometry.location.lat, lng: stored.geometry.location.lng } : null;
-                    if (type === 'pickup') pickupPlace = flat;
-                    else if (type === 'dropoff') dropoffPlace = flat;
-                    else if (type && type.startsWith('stop-')) stopPlaces[type] = flat;
-
-                    scheduleFareCalculation();
+                    // Use Geocoder to get coordinates - works with new Google Maps API
+                    var geocoder = new google.maps.Geocoder();
+                    geocoder.geocode({ address: address }, function(results, status) {
+                        if (status === 'OK' && results[0]) {
+                            var loc = results[0].geometry.location;
+                            var flat = {
+                                lat: typeof loc.lat === 'function' ? loc.lat() : loc.lat,
+                                lng: typeof loc.lng === 'function' ? loc.lng() : loc.lng
+                            };
+                            if (type === 'pickup') pickupPlace = flat;
+                            else if (type === 'dropoff') dropoffPlace = flat;
+                            else if (type && type.startsWith('stop-')) stopPlaces[type] = flat;
+                            scheduleFareCalculation();
+                        }
+                    });
                 });
 
                 return autocomplete;
@@ -3813,6 +3812,6 @@
     </script>
     
     <!-- Google Maps API for Address Autocomplete and Fare Calculation -->
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCbiaotFbX_249sYio_hGylsprJC8iumKI&libraries=places&callback=initGoogleMaps"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCbiaotFbX_249sYio_hGylsprJC8iumKI&libraries=places,geocoding&callback=initGoogleMaps"></script>
 </body>
 </html>
