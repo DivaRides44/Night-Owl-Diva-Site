@@ -3138,6 +3138,7 @@
                     <input type="hidden" name="_subject" value="🦉 New Ride Request - Night Owl Diva Rideshare">
                     <input type="hidden" name="_captcha" value="false">
                     <input type="hidden" name="_template" value="table">
+                    <input type="hidden" name="Fare_Estimate" id="fare-estimate-field" value="Calculating...">
                     
                     <div class="form-section">
                         <h3 class="form-section-title">📋 Your Information</h3>
@@ -3692,6 +3693,10 @@
             document.getElementById('fare-subtotal-display').textContent = '$' + subtotal.toFixed(2);
             document.getElementById('fare-tax-display').textContent = '$' + tax.toFixed(2);
             document.getElementById('fare-grand-total').textContent = '$' + total.toFixed(2);
+
+            // Write fare into the hidden form field so it appears in the email
+            var totalStr = document.getElementById('fare-grand-total').textContent;
+            document.getElementById('fare-estimate-field').value = totalStr;
 
             document.getElementById('payment-section').style.display = 'block';
             document.getElementById('payment-section').scrollIntoView({ behavior: 'smooth' });
