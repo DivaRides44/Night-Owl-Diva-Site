@@ -3569,19 +3569,33 @@
                     const address = place.formatted_address || place.name || inputElement.value;
                     if (address) inputElement.value = address;
 
-                    // Use Geocoder to get coordinates - works with new Google Maps API
+                    function storeAndCalculate(lat, lng) {
+                        var flat = { lat: lat, lng: lng };
+                        if (type === 'pickup') pickupPlace = flat;
+                        else if (type === 'dropoff') dropoffPlace = flat;
+                        else if (type && type.startsWith('stop-')) stopPlaces[type] = flat;
+                        scheduleFareCalculation();
+                    }
+
+                    // Try geometry from place object first
+                    if (place.geometry && place.geometry.location) {
+                        var loc = place.geometry.location;
+                        var lat = typeof loc.lat === 'function' ? loc.lat() : Number(loc.lat);
+                        var lng = typeof loc.lng === 'function' ? loc.lng() : Number(loc.lng);
+                        if (lat && lng) {
+                            storeAndCalculate(lat, lng);
+                            return;
+                        }
+                    }
+
+                    // Fallback: use Geocoder
                     var geocoder = new google.maps.Geocoder();
                     geocoder.geocode({ address: address }, function(results, status) {
                         if (status === 'OK' && results[0]) {
                             var loc = results[0].geometry.location;
-                            var flat = {
-                                lat: typeof loc.lat === 'function' ? loc.lat() : loc.lat,
-                                lng: typeof loc.lng === 'function' ? loc.lng() : loc.lng
-                            };
-                            if (type === 'pickup') pickupPlace = flat;
-                            else if (type === 'dropoff') dropoffPlace = flat;
-                            else if (type && type.startsWith('stop-')) stopPlaces[type] = flat;
-                            scheduleFareCalculation();
+                            var lat = typeof loc.lat === 'function' ? loc.lat() : Number(loc.lat);
+                            var lng = typeof loc.lng === 'function' ? loc.lng() : Number(loc.lng);
+                            storeAndCalculate(lat, lng);
                         }
                     });
                 });
